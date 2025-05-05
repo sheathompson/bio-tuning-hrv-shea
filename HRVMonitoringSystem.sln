@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HRVMonitoringSystem", "HRVMonitoringSystem.csproj", "{DC977654-06E0-4804-A9DA-207FB3B0641E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DC977654-06E0-4804-A9DA-207FB3B0641E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC977654-06E0-4804-A9DA-207FB3B0641E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC977654-06E0-4804-A9DA-207FB3B0641E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC977654-06E0-4804-A9DA-207FB3B0641E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {829BB889-A758-4275-966E-23E4E2BC23D6}
+	EndGlobalSection
+EndGlobal

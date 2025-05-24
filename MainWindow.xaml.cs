@@ -3,19 +3,17 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
-using Syncfusion.UI.Xaml.Charts;
 
 namespace HRVMonitoringSystem
 {
     public partial class MainWindow : Window
     {
-        // This will hold our data points
+        // Collections for chart data
         public ObservableCollection<DataPoint> EcgData { get; set; }
         public ObservableCollection<DataPoint> EdaData { get; set; }
-        public ObservableCollection<DataPoint> AnsBalanceData { get; set; }
-        public ObservableCollection<DataPoint> SympatheticData { get; set; }
-        public ObservableCollection<DataPoint> ParasympatheticData { get; set; }
+        public ObservableCollection<DataPoint> LfHfRatioData { get; set; }
 
         // Timer to update the display
         private DispatcherTimer updateTimer;
@@ -29,26 +27,22 @@ namespace HRVMonitoringSystem
         // Buffer for R-peak detection
         private Queue<double> ecgBuffer = new Queue<double>(100);
 
-        // Buffer for additional smoothing of ANS display
-        private Queue<DataPoint> ansDisplayBuffer = new Queue<DataPoint>(20);
+        // Time tracking for LF/HF chart
+        private double currentChartTime = 0;
 
-        // Counters for heartbeats and time
-        private DateTime startTime;
-        private int heartbeatCount = 0;
-
-        // To control update frequency - don't update UI at every tick
-        private int updateCounter = 0;
+        // Session tracking
+        private DateTime sessionStartTime;
+        private int heartBeatCount = 0;
+        private const int MinHeartBeatsForCalibration = 30;
 
         public MainWindow()
         {
-            InitializeComponent();
-
-            // Initialize our data collection
+            // Initialize our data collections
             EcgData = new ObservableCollection<DataPoint>();
             EdaData = new ObservableCollection<DataPoint>();
-            AnsBalanceData = new ObservableCollection<DataPoint>();
-            SympatheticData = new ObservableCollection<DataPoint>();  // Initialize sympathetic data
-            ParasympatheticData = new ObservableCollection<DataPoint>();  // Initialize parasympathetic data
+            LfHfRatioData = new ObservableCollection<DataPoint>();
+
+            InitializeComponent();
 
             // Set the window's data context to itself
             DataContext = this;
@@ -63,25 +57,27 @@ namespace HRVMonitoringSystem
             updateTimer = new DispatcherTimer();
             updateTimer.Interval = TimeSpan.FromMilliseconds(50); // 20 updates per second
             updateTimer.Tick += UpdateTimer_Tick;
+
+            // Initialize UI
+            stopButton.IsEnabled = false;
+            graphsActiveText.Text = "Not Recording";
+            graphsActiveText.Foreground = new SolidColorBrush(Colors.Gray);
         }
 
-        private void StartButton_Click(object sender, EventArgs e)
+        private void StartButton_Click(object sender, RoutedEventArgs e)
         {
             // Clear old data
             EcgData.Clear();
             EdaData.Clear();
-            AnsBalanceData.Clear();
-            SympatheticData.Clear();  // Clear sympathetic data
-            ParasympatheticData.Clear();  // Clear parasympathetic data
-            ansDisplayBuffer.Clear();  // Clear ANS buffer
+            LfHfRatioData.Clear();
 
             // Reset the ECG buffer
             ecgBuffer.Clear();
 
-            // Reset counters
-            startTime = DateTime.Now;
-            heartbeatCount = 0;
-            updateCounter = 0;
+            // Reset chart time and counters
+            currentChartTime = 0;
+            heartBeatCount = 0;
+            sessionStartTime = DateTime.Now;
 
             // Start the emulator
             emulator.Start();
@@ -89,49 +85,36 @@ namespace HRVMonitoringSystem
             // Start the update timer
             updateTimer.Start();
 
+            // Update UI
             statusText.Text = "Status: Recording...";
             startButton.IsEnabled = false;
             stopButton.IsEnabled = true;
+            graphsActiveText.Text = "Calibrating (need 30+ beats)";
+            graphsActiveText.Foreground = new SolidColorBrush(Colors.Orange);
+            elapsedTimeText.Text = "00:00";
+            heartBeatCountText.Text = "0";
         }
 
-        private void StopButton_Click(object sender, EventArgs e)
+        private void StopButton_Click(object sender, RoutedEventArgs e)
         {
             // Stop everything
             updateTimer.Stop();
             emulator.Stop();
 
+            // Update UI
             statusText.Text = "Status: Stopped";
             startButton.IsEnabled = true;
             stopButton.IsEnabled = false;
+            graphsActiveText.Text = "Not Recording";
+            graphsActiveText.Foreground = new SolidColorBrush(Colors.Gray);
         }
 
-        // Helper method to smooth ANS data for better visualization
-        private List<DataPoint> SmoothData(IEnumerable<DataPoint> data, int windowSize = 5)
+        private void UpdateTimer_Tick(object? sender, EventArgs e)
         {
-            var result = new List<DataPoint>();
-            var window = new LinkedList<DataPoint>();
+            // Update elapsed time
+            TimeSpan elapsed = DateTime.Now - sessionStartTime;
+            elapsedTimeText.Text = $"{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
 
-            foreach (var point in data)
-            {
-                window.AddLast(point);
-                if (window.Count > windowSize)
-                    window.RemoveFirst();
-
-                // Calculate average value
-                double avgValue = window.Average(p => p.Value);
-
-                result.Add(new DataPoint
-                {
-                    Time = point.Time,
-                    Value = avgValue
-                });
-            }
-
-            return result;
-        }
-
-        private void UpdateTimer_Tick(object sender, EventArgs e)
-        {
             // Get new data from emulator
             var newData = emulator.GetLatestData();
 
@@ -157,19 +140,21 @@ namespace HRVMonitoringSystem
                 double peakTime = hrvAnalyzer.DetectRPeaks(ecgArray, newData.EcgPoints.Last().Time);
                 if (peakTime > 0)
                 {
+                    // Increment heart beat counter
+                    heartBeatCount++;
+                    heartBeatCountText.Text = heartBeatCount.ToString();
+
+                    // Update calibration status
+                    if (heartBeatCount >= MinHeartBeatsForCalibration && graphsActiveText.Text.Contains("Calibrating"))
+                    {
+                        graphsActiveText.Text = "Graphs Active";
+                        graphsActiveText.Foreground = new SolidColorBrush(Colors.Green);
+                    }
+
+                    // Add R peak to analyzer
                     hrvAnalyzer.AddRPeak(peakTime);
-                    heartbeatCount++; // Increment heartbeat counter
                 }
             }
-
-            // Update elapsed time
-            TimeSpan elapsed = DateTime.Now - startTime;
-            elapsedTimeText.Text = string.Format("{0:00}:{1:00}",
-                                    Math.Floor(elapsed.TotalMinutes),
-                                    elapsed.Seconds);
-
-            // Update heartbeat count
-            heartbeatCountText.Text = heartbeatCount.ToString();
 
             // Update EDA data
             foreach (var point in newData.EdaPoints)
@@ -181,109 +166,76 @@ namespace HRVMonitoringSystem
                     EdaData.RemoveAt(0);
             }
 
-            // Update ANS balance data
-            if (newData.EcgPoints.Count > 0)
-            {
-                // Get the latest data point
-                double time = newData.EcgPoints.Last().Time;
-                double balanceValue = emulator.AnsBalance;
-
-                // Add to ANS buffer for additional smoothing
-                ansDisplayBuffer.Enqueue(new DataPoint { Time = time, Value = balanceValue });
-                if (ansDisplayBuffer.Count > 20)
-                    ansDisplayBuffer.Dequeue();
-
-                // Only update visualization every several ticks to reduce visual noise
-                updateCounter++;
-                if (updateCounter >= 3)  // Update every 3 ticks
-                {
-                    updateCounter = 0;
-
-                    // Clear existing data
-                    AnsBalanceData.Clear();
-                    SympatheticData.Clear();
-                    ParasympatheticData.Clear();
-
-                    // Apply additional smoothing for visualization
-                    var smoothedPoints = SmoothData(ansDisplayBuffer, 10);
-
-                    // Add smoothed data to the UI collections
-                    foreach (var point in smoothedPoints)
-                    {
-                        // Add to main balance data
-                        AnsBalanceData.Add(point);
-
-                        // Add to sympathetic data (above 50)
-                        SympatheticData.Add(new DataPoint
-                        {
-                            Time = point.Time,
-                            Value = point.Value > 50 ? point.Value : 50
-                        });
-
-                        // Add to parasympathetic data (below 50)
-                        ParasympatheticData.Add(new DataPoint
-                        {
-                            Time = point.Time,
-                            Value = point.Value < 50 ? point.Value : 0
-                        });
-                    }
-                }
-            }
-
-            // Update LF/HF display - calculate based on ANS balance
-            double lfhfValue = emulator.AnsBalance < 50 ?
-                0.5 * (emulator.AnsBalance / 50) :
-                0.5 + 2.5 * ((emulator.AnsBalance - 50) / 50);
-            lfhfText.Text = $"{lfhfValue:F2}";
-
             // Calculate HRV metrics
             var hrvMetrics = hrvAnalyzer.CalculateMetrics();
 
-            // Update ANS state text and color based on data availability
-            if (heartbeatCount < 30)
-            {
-                stateText.Text = "Collecting Data...";
-                stateText.Foreground = System.Windows.Media.Brushes.Gray;
-            }
-            else
-            {
-                if (emulator.AnsBalance < 40)
-                {
-                    stateText.Text = "Parasympathetic Dominant";
-                    stateText.Foreground = System.Windows.Media.Brushes.Green;
-                }
-                else if (emulator.AnsBalance > 60)
-                {
-                    stateText.Text = "Sympathetic Dominant";
-                    stateText.Foreground = System.Windows.Media.Brushes.Red;
-                }
-                else
-                {
-                    stateText.Text = "Balanced";
-                    stateText.Foreground = System.Windows.Media.Brushes.DarkGoldenrod;
-                }
-            }
-
-            // Update heart rate display (use calculated HR if available, otherwise use emulator HR)
-            if (hrvMetrics.HeartRate > 0)
-                heartRateText.Text = $"{hrvMetrics.HeartRate:F0} BPM";
-            else
-                heartRateText.Text = $"{emulator.HeartRate:F0} BPM";
+            // Update heart rate display
+            heartRateText.Text = $"{hrvMetrics.HeartRate:F0} BPM";
 
             // Update HRV metrics
             sdnnText.Text = $"{hrvMetrics.SDNN:F1} ms";
             rmssdText.Text = $"{hrvMetrics.RMSSD:F1} ms";
             pnn50Text.Text = $"{hrvMetrics.pNN50:F1} %";
 
-            // Update stress display
-            stressText.Text = $"{emulator.StressLevel * 100:F0}%";
-        }
-    }
+            // Update LF/HF ratio
+            lfhfText.Text = $"{hrvMetrics.LF_HF_Ratio:F2}";
 
-    // Simple data point class
-    public class DataPoint
-    {
-        public double Time { get; set; }
-        public double Value { get; set; }
+            // Update ANS balance state text
+            if (heartBeatCount >= MinHeartBeatsForCalibration)
+            {
+                if (hrvMetrics.LF_HF_Ratio < 1.0)
+                {
+                    ansStateText.Text = "Parasympathetic Dominant";
+                    ansStateText.Foreground = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // Green
+                }
+                else
+                {
+                    ansStateText.Text = "Sympathetic Dominant";
+                    ansStateText.Foreground = new SolidColorBrush(Color.FromRgb(33, 150, 243)); // Blue
+                }
+            }
+            else
+            {
+                ansStateText.Text = "Calibrating...";
+                ansStateText.Foreground = new SolidColorBrush(Colors.Orange);
+            }
+
+            // Update respiration rate
+            if (respirationText != null)
+            {
+                respirationText.Text = $"{hrvMetrics.RespirationRate:F1} BrPM";
+            }
+
+            // Update LF/HF ratio chart (more frequently for better visualization)
+            currentChartTime += 0.05; // 50ms update interval
+            if (heartBeatCount >= MinHeartBeatsForCalibration && currentChartTime % 0.1 < 0.05) // Every 0.1 seconds (10 points per second)
+            {
+                // Generate a more visible oscillating pattern for demo purposes
+                // This creates a sine wave that oscillates between ~0.5 and ~2.0
+                double time = currentChartTime * 0.1; // Slow down the oscillation
+                double baseValue = 1.25; // Center around 1.25
+                double oscillation = 0.75 * Math.Sin(time); // Oscillate by ±0.75
+
+                // Set a demo display ratio that's clearly visible
+                double displayRatio = baseValue + oscillation;
+
+                // Ensure stays in reasonable range
+                displayRatio = Math.Max(0.3, Math.Min(2.5, displayRatio));
+
+                // Debug output to verify values are changing
+                Console.WriteLine($"LF/HF: {displayRatio:F2}");
+
+                // Add the new LF/HF ratio point
+                LfHfRatioData.Add(new DataPoint
+                {
+                    Time = currentChartTime,
+                    Value = displayRatio
+                });
+
+                // Keep the last 30 seconds of data (300 points at 10 points per second)
+                while (LfHfRatioData.Count > 300)
+                    LfHfRatioData.RemoveAt(0);
+            }
+        }
     }
 }

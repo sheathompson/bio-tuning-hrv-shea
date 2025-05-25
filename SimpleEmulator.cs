@@ -14,9 +14,15 @@ namespace HRVMonitoringSystem
         private bool scrActive = false;
         private double scrAmplitudeValue = 0;
 
+        // Properties for display
         public double HeartRate { get; private set; } = 70;
         public double StressLevel { get; private set; } = 0.3;
         public double RespiratoryRate { get; private set; } = 15;
+        public bool RpeakDetected { get; private set; } = false;
+
+        // Additional metrics - ONLY DECLARED ONCE
+        public double CurrentRRInterval { get; private set; } = 857; // ms
+        public double CurrentHeartRate { get; private set; } = 70;
 
         public void Start()
         {
@@ -41,16 +47,22 @@ namespace HRVMonitoringSystem
             // Generate 10 new data points
             for (int i = 0; i < 10; i++)
             {
-                currentTime += 0.01; // Changed from 0.001 to 0.01 seconds per sample (100 Hz)
+                currentTime += 0.001; // 1ms per sample (1000 Hz)
 
                 // Calculate time since last beat
                 double timeSinceLastBeat = currentTime - lastBeatTime;
 
                 // Check if it's time for a new heartbeat
+                RpeakDetected = false;
                 if (timeSinceLastBeat >= nextBeatInterval)
                 {
                     lastBeatTime = currentTime;
                     CalculateNextBeatInterval();
+                    RpeakDetected = true;
+
+                    // Update current metrics
+                    CurrentRRInterval = nextBeatInterval * 1000; // Convert to ms
+                    CurrentHeartRate = 60.0 / nextBeatInterval;
                 }
 
                 // Generate ECG value
@@ -73,39 +85,27 @@ namespace HRVMonitoringSystem
                 });
 
                 // Generate EDA (skin conductance) value
-                double edaBaseLevel = 2.0 + StressLevel * 5.0; // Higher stress = higher conductance
-
-                // Add slow varying component (SCL - Skin Conductance Level)
+                double edaBaseLevel = 2.0 + StressLevel * 5.0;
                 double scl = edaBaseLevel + 0.2 * Math.Sin(2 * Math.PI * 0.05 * currentTime);
 
-                // Add occasional SCRs (Skin Conductance Responses)
+                // Add occasional SCRs
                 double scr = 0;
-                if (random.NextDouble() < StressLevel * 0.01) // Probability of SCR based on stress
+                if (random.NextDouble() < StressLevel * 0.01)
                 {
-                    // SCR rises quickly and falls slowly
-                    double scrAmplitude = 0.5 * StressLevel * (1 + random.NextDouble());
-
-                    // Store SCR start time if new one triggered
                     lastScrTime = currentTime;
                     scrActive = true;
-                    scrAmplitudeValue = scrAmplitude;
+                    scrAmplitudeValue = 0.5 * StressLevel * (1 + random.NextDouble());
                 }
 
-                // If SCR is active, calculate its value
                 if (scrActive)
                 {
                     double scrTime = currentTime - lastScrTime;
-                    if (scrTime < 5.0) // SCR lasts about 5 seconds
+                    if (scrTime < 5.0)
                     {
-                        // Fast rise (0-1s), slow decay (1-5s)
                         if (scrTime < 1.0)
-                        {
                             scr = scrAmplitudeValue * (scrTime / 1.0);
-                        }
                         else
-                        {
                             scr = scrAmplitudeValue * Math.Exp(-(scrTime - 1.0) / 2.0);
-                        }
                     }
                     else
                     {
@@ -113,64 +113,104 @@ namespace HRVMonitoringSystem
                     }
                 }
 
-                // Add small noise
                 double edaNoise = (random.NextDouble() - 0.5) * 0.05;
-
-                // Combine all EDA components
                 double finalEdaValue = scl + scr + edaNoise;
 
-                // Add EDA data point
                 packet.EdaPoints.Add(new DataPoint
                 {
                     Time = currentTime,
                     Value = finalEdaValue
                 });
+
+                // Add heart rate data point (only when R-peak detected)
+                if (RpeakDetected)
+                {
+                    packet.HeartRatePoints.Add(new DataPoint
+                    {
+                        Time = currentTime,
+                        Value = CurrentHeartRate
+                    });
+                }
+
+                // Generate frequency data periodically (every 100ms)
+                if ((int)(currentTime * 10) % 1 == 0 && i == 0)
+                {
+                    GenerateFrequencyData(packet);
+                }
             }
 
             return packet;
         }
 
-        // In SimpleEmulator class
+        private void GenerateFrequencyData(DataPacket packet)
+        {
+            // Generate simulated frequency spectrum
+            var spectrum = new List<DataPoint>();
+
+            // Create frequency bins from 0 to 0.5 Hz
+            for (double freq = 0; freq <= 0.5; freq += 0.001)
+            {
+                double power = 0;
+
+                // VLF component (0-0.04 Hz)
+                if (freq < 0.04)
+                {
+                    power += 50 * Math.Exp(-Math.Pow((freq - 0.02) / 0.01, 2));
+                }
+
+                // LF component (0.04-0.15 Hz) - influenced by stress
+                if (freq >= 0.04 && freq < 0.15)
+                {
+                    double lfCenter = 0.1;
+                    power += (30 + StressLevel * 40) * Math.Exp(-Math.Pow((freq - lfCenter) / 0.03, 2));
+                }
+
+                // HF component (0.15-0.4 Hz) - influenced by breathing
+                if (freq >= 0.15 && freq < 0.4)
+                {
+                    double hfCenter = RespiratoryRate / 60.0; // Respiratory frequency in Hz
+                    power += (40 - StressLevel * 20) * Math.Exp(-Math.Pow((freq - hfCenter) / 0.05, 2));
+                }
+
+                // Add some noise
+                power += (random.NextDouble() - 0.5) * 2;
+                power = Math.Max(0, power);
+
+                spectrum.Add(new DataPoint { Time = freq, Value = power });
+            }
+
+            packet.FrequencySpectrum = spectrum;
+
+            // Calculate LF/HF ratio
+            double lfPower = 0, hfPower = 0;
+            foreach (var point in spectrum)
+            {
+                if (point.Time >= 0.04 && point.Time < 0.15)
+                    lfPower += point.Value;
+                else if (point.Time >= 0.15 && point.Time < 0.4)
+                    hfPower += point.Value;
+            }
+
+            if (hfPower > 0)
+            {
+                packet.LfHfRatio = lfPower / hfPower;
+            }
+        }
+
         private void CalculateNextBeatInterval()
         {
-            // Base heart rate that changes slowly over time
-            double baseHeartRate = 75.0 + 10.0 * Math.Sin(currentTime * 0.01);
+            double baseInterval = 60.0 / HeartRate;
+            double hrvComponent = (random.NextDouble() - 0.5) * 0.1 * baseInterval;
+            hrvComponent *= (1 - StressLevel * 0.5);
 
-            // Add respiratory sinus arrhythmia (RSA) - heart rate variability linked to breathing
-            double rsaComponent = 5.0 * Math.Sin(2 * Math.PI * RespiratoryRate / 60 * currentTime);
+            nextBeatInterval = baseInterval + hrvComponent;
 
-            // Sometimes shift toward parasympathetic (lower HR) or sympathetic (higher HR)
-            // This creates the oscillation in ANS balance
-            double ansBalance = 8.0 * Math.Sin(currentTime * 0.005);
+            // Update heart rate with more realistic variation
+            HeartRate = 70 + Math.Sin(currentTime * 0.05) * 5 + (random.NextDouble() - 0.5) * 2;
+            StressLevel = Math.Max(0, Math.Min(1, StressLevel + (random.NextDouble() - 0.5) * 0.01));
 
-            // Calculate target heart rate with all components
-            double targetHeartRate = baseHeartRate + rsaComponent + ansBalance;
-
-            // Keep heart rate in physiological range
-            if (targetHeartRate < 55.0) targetHeartRate = 55.0;
-            if (targetHeartRate > 95.0) targetHeartRate = 95.0;
-
-            // Calculate beat interval from heart rate (convert BPM to seconds)
-            nextBeatInterval = 60.0 / targetHeartRate;
-
-            // Add some random beat-to-beat variability (normal HRV)
-            double randomVariability = (random.NextDouble() - 0.5) * 0.05 * nextBeatInterval;
-            nextBeatInterval += randomVariability;
-
-            // Store the actual heart rate
-            HeartRate = 60.0 / nextBeatInterval;
-
-            // Update LF/HF ratio to match current state (for ANS balance)
-            // Higher heart rate = more sympathetic (higher LF/HF ratio)
-            double normalizedHR = (HeartRate - 60.0) / 40.0; // 0 at 60 BPM, 1 at 100 BPM
-
-            // Create StressLevel inverse to parasympathetic activity
-            // Higher heart rate = more stress
-            StressLevel = 0.3 + 0.4 * normalizedHR + 0.1 * Math.Sin(currentTime * 0.1);
-            StressLevel = Math.Max(0.1, Math.Min(0.9, StressLevel));
-
-            // Update respiratory rate with slow changes
-            RespiratoryRate = 12.0 + 3.0 * Math.Sin(currentTime * 0.003) + (random.NextDouble() - 0.5);
+            // Update respiratory rate
+            RespiratoryRate = 15 + Math.Sin(currentTime * 0.02) * 3;
         }
 
         private double GenerateEcgValue(double currentTime, double lastBeatTime)
@@ -230,18 +270,5 @@ namespace HRVMonitoringSystem
 
             return ecgValue;
         }
-    }
-
-    public class DataPacket
-    {
-        public List<DataPoint> EcgPoints { get; set; } = new List<DataPoint>();
-        public List<DataPoint> EdaPoints { get; set; } = new List<DataPoint>();
-    }
-
-    // Simple data point class
-    public class DataPoint
-    {
-        public double Time { get; set; }
-        public double Value { get; set; }
     }
 }

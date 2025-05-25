@@ -9,8 +9,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Syncfusion.SfChart.WPF" Version="29.1.40" />
-    <PackageReference Include="Syncfusion.Shared.WPF" Version="29.1.40" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
+    <PackageReference Include="Syncfusion.SfChart.WPF" Version="29.2.5" />
+    <PackageReference Include="Syncfusion.Shared.WPF" Version="29.2.5" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.5" />
+    <PackageReference Include="System.Management" Version="9.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="BITalinoBridge\" />
   </ItemGroup>
 
 </Project>

@@ -2,193 +2,341 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:syncfusion="http://schemas.syncfusion.com/wpf"
-        Title="HRV Monitoring System" Height="900" Width="1000">
+        Title="Professional HRV Analysis System - BITalino Integration" 
+        Height="1000" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E">
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Control Panel -->
-        <Grid Grid.Row="0" Margin="10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
+        <!-- Modern Control Panel -->
+        <Border Grid.Row="0" Background="#2196F3" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <Button Name="startButton" Content="Start" Width="100" Height="30" 
-                        Click="StartButton_Click" Margin="5"/>
-                <Button Name="stopButton" Content="Stop" Width="100" Height="30" 
-                        Click="StopButton_Click" Margin="5"/>
-                <TextBlock Name="statusText" Text="Status: Ready" 
-                           VerticalAlignment="Center" Margin="10,0"/>
-            </StackPanel>
+                <!-- Control Buttons -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Name="startButton" Content="▶ START RECORDING" 
+                            Width="150" Height="40" Margin="5"
+                            Background="#4CAF50" Foreground="White" 
+                            FontWeight="Bold" FontSize="14"
+                            Click="StartButton_Click">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="5"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="5,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Time: " FontSize="14"/>
-                        <TextBlock Name="elapsedTimeText" Text="00:00" FontSize="14" FontWeight="Bold"/>
-                    </StackPanel>
-                </Border>
+                    <Button Name="stopButton" Content="⬛ STOP" 
+                            Width="100" Height="40" Margin="5"
+                            Background="#F44336" Foreground="White" 
+                            FontWeight="Bold" FontSize="14"
+                            IsEnabled="False"
+                            Click="StopButton_Click">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="5"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
 
-                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="5,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Heart Beats: " FontSize="14"/>
-                        <TextBlock Name="heartBeatCountText" Text="0" FontSize="14" FontWeight="Bold"/>
-                    </StackPanel>
-                </Border>
+                    <Button Name="testButton" Content="TEST CONNECTION" 
+                            Width="120" Height="40" Margin="5"
+                            Background="#FF9800" Foreground="White" 
+                            FontWeight="Bold" FontSize="12"
+                            Click="TestButton_Click">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="5"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
 
-                <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="3" Padding="5,2" Margin="5,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Status: " FontSize="14"/>
-                        <TextBlock Name="graphsActiveText" Text="Calibrating (need 30+ beats)" FontSize="14" FontWeight="Bold" Foreground="Orange"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </Grid>
+                <!-- Mode Selection -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="20,0">
+                    <TextBlock Text="MODE:" Foreground="White" FontWeight="Bold" 
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <RadioButton Name="hardwareRadio" Content="BITalino Hardware" 
+                                 Foreground="White" VerticalAlignment="Center" 
+                                 IsChecked="True" Margin="0,0,15,0"/>
+                    <RadioButton Name="emulatorRadio" Content="Emulator" 
+                                 Foreground="White" VerticalAlignment="Center"/>
+                </StackPanel>
 
-        <!-- ECG Chart -->
-        <syncfusion:SfChart Grid.Row="1" Margin="10">
-            <syncfusion:SfChart.PrimaryAxis>
-                <syncfusion:NumericalAxis Header="Time (seconds)"/>
-            </syncfusion:SfChart.PrimaryAxis>
+                <!-- Status -->
+                <TextBlock Grid.Column="3" Name="statusText" 
+                           Text="Status: Ready" 
+                           Foreground="White" FontSize="16" 
+                           VerticalAlignment="Center" 
+                           Margin="20,0"/>
+            </Grid>
+        </Border>
 
-            <syncfusion:SfChart.SecondaryAxis>
-                <syncfusion:NumericalAxis Header="ECG Value"/>
-            </syncfusion:SfChart.SecondaryAxis>
-
-            <syncfusion:FastLineSeries Name="ecgSeries" 
-                                      ItemsSource="{Binding EcgData}"
-                                      XBindingPath="Time"
-                                      YBindingPath="Value"/>
-        </syncfusion:SfChart>
-
-        <!-- EDA Chart -->
-        <syncfusion:SfChart Grid.Row="2" Margin="10">
-            <syncfusion:SfChart.PrimaryAxis>
-                <syncfusion:NumericalAxis Header="Time (seconds)"/>
-            </syncfusion:SfChart.PrimaryAxis>
-
-            <syncfusion:SfChart.SecondaryAxis>
-                <syncfusion:NumericalAxis Header="Skin Conductance (μS)"/>
-            </syncfusion:SfChart.SecondaryAxis>
-
-            <syncfusion:FastLineSeries Name="edaSeries" 
-                                      ItemsSource="{Binding EdaData}"
-                                      XBindingPath="Time"
-                                      YBindingPath="Value"
-                                      Interior="Orange"/>
-        </syncfusion:SfChart>
-
-        <!-- Autonomic Balance Chart -->
-        <Grid Grid.Row="3" Margin="10">
+        <!-- Main Chart Area -->
+        <Grid Grid.Row="1" Margin="10">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-
-            <TextBlock Grid.Row="0" Text="Autonomic Nervous System Balance" 
-                       FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"/>
-
-            <syncfusion:SfChart Grid.Row="1" Name="autonomicChart" Margin="0,5,0,0">
-                <syncfusion:SfChart.PrimaryAxis>
-                    <syncfusion:NumericalAxis Header="Time (seconds)" Interval="5"/>
-                </syncfusion:SfChart.PrimaryAxis>
-
-                <syncfusion:SfChart.SecondaryAxis>
-                    <syncfusion:NumericalAxis Header="" Minimum="0" Maximum="4" 
-                                             ShowGridLines="True" 
-                                             LabelFormat="{}{0}"/>
-                </syncfusion:SfChart.SecondaryAxis>
-
-                <!-- Parasympathetic Area - Green -->
-                <syncfusion:AreaSeries Name="parasympatheticSeries"
-                                      ItemsSource="{Binding LfHfRatioData}"
-                                      XBindingPath="Time"
-                                      YBindingPath="Value"
-                                      Interior="#4CAF50" 
-                                      Visibility="Visible">
-                    <syncfusion:AreaSeries.ColorModel>
-                        <syncfusion:ChartColorModel>
-                            <syncfusion:ChartColorModel.CustomBrushes>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#4CAF50" Offset="0" />
-                                    <GradientStop Color="#A5D6A7" Offset="1" />
-                                </LinearGradientBrush>
-                            </syncfusion:ChartColorModel.CustomBrushes>
-                        </syncfusion:ChartColorModel>
-                    </syncfusion:AreaSeries.ColorModel>
-                </syncfusion:AreaSeries>
-
-                <!-- LF/HF Line - Red -->
-                <syncfusion:FastLineSeries Name="lfhfLineSeries"
-                                          ItemsSource="{Binding LfHfRatioData}"
-                                          XBindingPath="Time"
-                                          YBindingPath="Value"
-                                          StrokeThickness="2"
-                                          Interior="Red"/>
-            </syncfusion:SfChart>
-
-            <!-- Overlaid Information -->
-            <Grid Grid.Row="1" IsHitTestVisible="False">
-                <TextBlock Text="Parasympathetic (Rest &amp; Digest)" Foreground="#4CAF50" 
-                          FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,40"/>
-                <TextBlock Text="Sympathetic (Fight/Flight)" Foreground="#2196F3" 
-                          FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,40,10,0"/>
-
-                <!-- Balance Line -->
-                <Border BorderBrush="Gray" BorderThickness="0,1,0,0" Margin="0,200,0,0" 
-                        VerticalAlignment="Top" HorizontalAlignment="Stretch" 
-                        Opacity="0.5">
-                    <Border.Effect>
-                        <DropShadowEffect ShadowDepth="0" BlurRadius="2" Opacity="0.3"/>
-                    </Border.Effect>
-                </Border>
-                <TextBlock Text="Balance Point (LF/HF = 1.0)" Foreground="Gray" 
-                         FontSize="10" HorizontalAlignment="Right" Margin="0,185,10,0"
-                         VerticalAlignment="Top"/>
-            </Grid>
-        </Grid>
-
-        <!-- Metrics Panel -->
-        <Grid Grid.Row="4" Margin="10">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="2*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Basic Metrics -->
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <TextBlock Text="Heart Rate: " FontSize="16"/>
-                <TextBlock Name="heartRateText" Text="-- BPM" FontSize="16" FontWeight="Bold" Margin="0,0,20,0"/>
-                <TextBlock Text="Resp: " FontSize="16"/>
-                <TextBlock Name="respirationText" Text="-- BrPM" FontSize="16" FontWeight="Bold"/>
-            </StackPanel>
+            <!-- Top Left: Heart Rate Chart -->
+            <Border Grid.Row="0" Grid.Column="0" Margin="5" 
+                    Background="#2A2A2A" BorderBrush="#444" 
+                    BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-            <!-- HRV Metrics -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <TextBlock Text="SDNN: " FontSize="16"/>
-                <TextBlock Name="sdnnText" Text="-- ms" FontSize="16" FontWeight="Bold" Margin="0,0,15,0"/>
-                <TextBlock Text="RMSSD: " FontSize="16"/>
-                <TextBlock Name="rmssdText" Text="-- ms" FontSize="16" FontWeight="Bold" Margin="0,0,15,0"/>
-                <TextBlock Text="pNN50: " FontSize="16"/>
-                <TextBlock Name="pnn50Text" Text="-- %" FontSize="16" FontWeight="Bold"/>
-            </StackPanel>
+                    <TextBlock Grid.Row="0" Text="HEART RATE" 
+                               FontSize="16" FontWeight="Bold" 
+                               Margin="15,10" Foreground="#FFF"/>
 
-            <!-- ANS Balance Metrics -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                <TextBlock Text="LF/HF: " FontSize="16"/>
-                <TextBlock Name="lfhfText" Text="--" FontSize="16" FontWeight="Bold" Margin="0,0,15,0"/>
-                <TextBlock Text="Current State: " FontSize="16"/>
-                <TextBlock Name="ansStateText" Text="--" FontSize="16" FontWeight="Bold"/>
-            </StackPanel>
+                    <syncfusion:SfChart Grid.Row="1" Margin="10,0,10,10"
+                                        Background="Transparent">
+                        <syncfusion:SfChart.PrimaryAxis>
+                            <syncfusion:DateTimeAxis Header="Time" 
+                                                     FontSize="12"
+                                                     Foreground="#AAA"
+                                                     LabelFormat="HH:mm:ss"/>
+                        </syncfusion:SfChart.PrimaryAxis>
+
+                        <syncfusion:SfChart.SecondaryAxis>
+                            <syncfusion:NumericalAxis Header="BPM" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"
+                                                      Minimum="40"
+                                                      Maximum="140"/>
+                        </syncfusion:SfChart.SecondaryAxis>
+
+                        <syncfusion:AreaSeries Name="heartRateSeries" 
+                                               ItemsSource="{Binding HeartRateData}"
+                                               XBindingPath="Time"
+                                               YBindingPath="Value"
+                                               Interior="#4CAF50"
+                                               Opacity="0.7"/>
+                    </syncfusion:SfChart>
+                </Grid>
+            </Border>
+
+            <!-- Top Right: LF/HF Ratio -->
+            <Border Grid.Row="0" Grid.Column="1" Margin="5" 
+                    Background="#2A2A2A" BorderBrush="#444" 
+                    BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="LF : HF RATIO" 
+                               FontSize="16" FontWeight="Bold" 
+                               Margin="15,10" Foreground="#FFF"/>
+
+                    <syncfusion:SfChart Grid.Row="1" Margin="10,0,10,10"
+                                        Background="Transparent">
+                        <syncfusion:SfChart.PrimaryAxis>
+                            <syncfusion:NumericalAxis Visibility="Collapsed"/>
+                        </syncfusion:SfChart.PrimaryAxis>
+
+                        <syncfusion:SfChart.SecondaryAxis>
+                            <syncfusion:NumericalAxis Header="Ratio" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"
+                                                      Minimum="0"
+                                                      Maximum="10"/>
+                        </syncfusion:SfChart.SecondaryAxis>
+
+                        <syncfusion:SfChart.Annotations>
+                            <syncfusion:HorizontalLineAnnotation Y1="1" 
+                                                                 Stroke="#4CAF50"
+                                                                 StrokeThickness="2"
+                                                                 StrokeDashArray="5,5"/>
+                        </syncfusion:SfChart.Annotations>
+
+                        <syncfusion:ColumnSeries Name="lfhfSeries" 
+                                                 ItemsSource="{Binding LFHFData}"
+                                                 XBindingPath="Category"
+                                                 YBindingPath="Value"
+                                                 Interior="#2196F3"
+                                                 Width="0.5"/>
+                    </syncfusion:SfChart>
+
+                    <!-- Current Value Display -->
+                    <Border Grid.Row="2" Background="#4CAF50" 
+                            Padding="10" Margin="10,0,10,10">
+                        <TextBlock Name="lfhfValueText" Text="2.5" 
+                                   FontSize="36" FontWeight="Bold" 
+                                   Foreground="White" HorizontalAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Bottom Left: Raw ECG Trace -->
+            <Border Grid.Row="1" Grid.Column="0" Margin="5" 
+                    Background="#2A2A2A" BorderBrush="#444" 
+                    BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="RAW ECG TRACE" 
+                               FontSize="16" FontWeight="Bold" 
+                               Margin="15,10" Foreground="#FFF"/>
+
+                    <syncfusion:SfChart Grid.Row="1" Margin="10,0,10,10"
+                                        Background="Transparent">
+                        <syncfusion:SfChart.PrimaryAxis>
+                            <syncfusion:NumericalAxis Header="Time (seconds)" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"/>
+                        </syncfusion:SfChart.PrimaryAxis>
+
+                        <syncfusion:SfChart.SecondaryAxis>
+                            <syncfusion:NumericalAxis Header="Amplitude (mV)" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"/>
+                        </syncfusion:SfChart.SecondaryAxis>
+
+                        <syncfusion:FastLineSeries Name="ecgSeries" 
+                                                   ItemsSource="{Binding EcgData}"
+                                                   XBindingPath="Time"
+                                                   YBindingPath="Value"
+                                                   Interior="#F44336"
+                                                   StrokeThickness="2"/>
+                    </syncfusion:SfChart>
+                </Grid>
+            </Border>
+
+            <!-- Bottom Right: Frequency Spectrum -->
+            <Border Grid.Row="1" Grid.Column="1" Margin="5" 
+                    Background="#2A2A2A" BorderBrush="#444" 
+                    BorderThickness="1" CornerRadius="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="FREQUENCY SPECTRUM" 
+                               FontSize="16" FontWeight="Bold" 
+                               Margin="15,10" Foreground="#FFF"/>
+
+                    <syncfusion:SfChart Grid.Row="1" Margin="10,0,10,10"
+                                        Background="Transparent">
+                        <syncfusion:SfChart.PrimaryAxis>
+                            <syncfusion:NumericalAxis Header="Frequency (Hz)" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"
+                                                      Minimum="0"
+                                                      Maximum="0.5"/>
+                        </syncfusion:SfChart.PrimaryAxis>
+
+                        <syncfusion:SfChart.SecondaryAxis>
+                            <syncfusion:NumericalAxis Header="Power" 
+                                                      FontSize="12"
+                                                      Foreground="#AAA"/>
+                        </syncfusion:SfChart.SecondaryAxis>
+
+                        <!-- VLF Band -->
+                        <syncfusion:AreaSeries Name="vlfSeries" 
+                                               ItemsSource="{Binding VLFData}"
+                                               XBindingPath="Frequency"
+                                               YBindingPath="Power"
+                                               Interior="#F44336"
+                                               Opacity="0.7"/>
+
+                        <!-- LF Band -->
+                        <syncfusion:AreaSeries Name="lfSeries" 
+                                               ItemsSource="{Binding LFData}"
+                                               XBindingPath="Frequency"
+                                               YBindingPath="Power"
+                                               Interior="#2196F3"
+                                               Opacity="0.7"/>
+
+                        <!-- HF Band -->
+                        <syncfusion:AreaSeries Name="hfSeries" 
+                                               ItemsSource="{Binding HFData}"
+                                               XBindingPath="Frequency"
+                                               YBindingPath="Power"
+                                               Interior="#4CAF50"
+                                               Opacity="0.7"/>
+                    </syncfusion:SfChart>
+                </Grid>
+            </Border>
         </Grid>
+
+        <!-- Bottom Status Bar with Metrics -->
+        <Border Grid.Row="2" Background="#1A1A1A" Padding="15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Heart Rate -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,30,0">
+                    <TextBlock Text="HR: " Foreground="#AAA" FontSize="16"/>
+                    <TextBlock Name="heartRateText" Text="-- BPM" 
+                               Foreground="#4CAF50" FontSize="16" FontWeight="Bold"/>
+                </StackPanel>
+
+                <!-- HRV Metrics -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,30,0">
+                    <TextBlock Text="SDNN: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="sdnnText" Text="--" 
+                               Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,15,0"/>
+                    <TextBlock Text="RMSSD: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="rmssdText" Text="--" 
+                               Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,15,0"/>
+                    <TextBlock Text="pNN50: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="pnn50Text" Text="--" 
+                               Foreground="White" FontSize="14" FontWeight="Bold"/>
+                </StackPanel>
+
+                <!-- Frequency Domain -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,30,0">
+                    <TextBlock Text="LF: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="lfPowerText" Text="--" 
+                               Foreground="#2196F3" FontSize="14" FontWeight="Bold" Margin="0,0,15,0"/>
+                    <TextBlock Text="HF: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="hfPowerText" Text="--" 
+                               Foreground="#4CAF50" FontSize="14" FontWeight="Bold"/>
+                </StackPanel>
+
+                <!-- Session Info -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                    <TextBlock Text="Session: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="elapsedTimeText" Text="00:00" 
+                               Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,15,0"/>
+                    <TextBlock Text="Samples: " Foreground="#AAA" FontSize="14"/>
+                    <TextBlock Name="dataPointsText" Text="0" 
+                               Foreground="White" FontSize="14" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
